@@ -63,7 +63,22 @@ export const parseArgs = (): Partial<MonitorConfig> & { cacheDir: string } => {
 		try {
 			config.urls = JSON.parse(config.urls);
 		} catch (error) {
-			throw new Error(`ERROR: urls is not valid json: ${config.urls}`);
+			// Try to handle bracket-wrapped URL strings like [https://example.com]
+			const bracketMatch = config.urls.trim().match(/^\[(.+)\]$/);
+			if (bracketMatch) {
+				const urlsContent = bracketMatch[1];
+				// Split by comma and trim each URL, then quote them
+				const urls = urlsContent.split(',').map((url: string) => url.trim()).filter((url: string) => url.length > 0);
+				const quotedUrls = urls.map((url: string) => JSON.stringify(url));
+				const jsonArray = `[${quotedUrls.join(',')}]`;
+				try {
+					config.urls = JSON.parse(jsonArray);
+				} catch (parseError) {
+					throw new Error(`ERROR: urls is not valid json: ${config.urls}`);
+				}
+			} else {
+				throw new Error(`ERROR: urls is not valid json: ${config.urls}`);
+			}
 		}
 	}
 	["authWithoutHost", "networkFilterPatterns"].forEach(key => {
